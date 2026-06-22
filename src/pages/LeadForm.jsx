@@ -16,6 +16,23 @@ export default function LeadForm() {
   const [error, setError]   = useState('')
   const [success, setSuccess] = useState(false)
 
+  const parseResponse = async (response) => {
+    const contentType = response.headers.get('content-type') || ''
+    if (contentType.includes('application/json')) {
+      return response.json()
+    }
+
+    const text = await response.text()
+    const looksLikeHtml = text.trim().startsWith('<')
+    if (looksLikeHtml) {
+      throw new Error(
+        `API returned HTML instead of JSON. Check VITE_API_BASE_URL. Current API base: ${API_BASE}`,
+      )
+    }
+
+    throw new Error(text || 'Unexpected non-JSON response from API.')
+  }
+
   const onChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
@@ -32,7 +49,7 @@ export default function LeadForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       })
-      const data = await res.json()
+      const data = await parseResponse(res)
       if (!res.ok) throw new Error(data.error || 'Submission failed.')
       setFormData(initialForm)
       setSuccess(true)
